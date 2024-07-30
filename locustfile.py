@@ -10,10 +10,19 @@ class WriteSecret(HttpUser):
         self.client.post(url="/v1/sys/mounts/locust-load-test", 
                          headers={"X-Vault-Token": vault_token},
                          json={"type": "kv", "options": {"version": "2"}})
-    
         
-    @task
-    def about(self):
         self.client.post(url="/v1/locust-load-test/data/some-key", 
                          headers={"X-Vault-Token": vault_token},
                          json={"data": {"hello": "world"}})
+    
+        
+    @task
+    def write_secret(self):
+        self.client.post(url="/v1/locust-load-test/data/some-key", 
+                         headers={"X-Vault-Token": vault_token},
+                         json={"data": {"hello": "world"}})
+    
+    @task(10)
+    def read_secret(self):
+        self.client.get(url="/v1/locust-load-test/data/some-key", 
+                         headers={"X-Vault-Token": vault_token})
