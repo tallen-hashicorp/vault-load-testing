@@ -22,7 +22,8 @@ class WriteSecret(HttpUser):
                          headers={"X-Vault-Token": vault_token},
                          json={"data": {"hello": "world"}})
     
-    @task(10)
+    @task(100)
     def read_secret(self):
-        self.client.get(url="/v1/locust-load-test/data/some-key", 
+        for item_id in range(50):
+            self.client.get(url="/v1/locust-load-test/data/some-key", 
                          headers={"X-Vault-Token": vault_token})
