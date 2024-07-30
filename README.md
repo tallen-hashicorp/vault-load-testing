@@ -35,7 +35,7 @@ To help us monitor Vault, I have included a basic Prometheus and Grafana Docker 
 * Go to [http://127.0.0.1:3000](http://127.0.0.1:3000)
 * Login with `admin/admin`
 * Then add Prometheus
-* Set the Prometheus server URL to `http://prometheus:9090`
+* Set the Prometheus server URL to `http://prometheus:9090` 
 * Click `Create your first dashboard`
 * Select `Import`
 * Select ID `12904`
