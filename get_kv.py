@@ -14,7 +14,6 @@ class WriteSecret(HttpUser):
         self.client.post(url="/v1/locust-load-test/data/some-key", 
                          headers={"X-Vault-Token": vault_token},
                          json={"data": {"hello": "world"}})
-    
         
     @task
     def write_secret(self):
