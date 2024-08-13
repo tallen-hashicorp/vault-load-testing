@@ -40,11 +40,3 @@ To help us monitor Vault, I have included a basic Prometheus and Grafana Docker 
 * Select `Import`
 * Select ID `12904`
 * Select `Promxy` as your Prometheus
-
-# TODO
-
-* Add some PKI
-* Add some service token generation
-* Add some batch token generation
-* Take advantage of [Resource quotas](https://developer.hashicorp.com/vault/docs/concepts/resource-quotas)
-* Look into [Adaptive overload protection](https://developer.hashicorp.com/vault/docs/concepts/adaptive-overload-protection)
