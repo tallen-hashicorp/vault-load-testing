@@ -16,6 +16,13 @@ spec:
       labels:
         app: vault-cluster
     spec:
+      initContainers:
+      - name: init-check-secret
+        image: busybox
+        command: ['sh', '-c', 'until [ -f /vault/secrets/vault_token ]; do echo "waiting for secret"; sleep 2; done']
+        volumeMounts:
+        - name: vault-secrets
+          mountPath: /vault/secrets
       containers:
       - name: vault
         image: hashicorp/vault:1.16
@@ -48,12 +55,20 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-unseal-init-secrets
+              key: vault_token
       volumes:
       - name: vault-data
         emptyDir: {}
       - name: vault-config
         configMap:
           name: vault-cluster-config
+      - name: vault-secrets
+        secret:
+          secretName: vault-unseal-init-secrets
 ---
 apiVersion: v1
 kind: Service

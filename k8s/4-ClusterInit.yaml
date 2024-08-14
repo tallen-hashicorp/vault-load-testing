@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-cluster-init-job
+  namespace: vault
+spec:
+  template:
+    spec:
+      serviceAccountName: secret-writer
+      containers:
+      - name: vault-cluster-init
+        image: hashicorp/vault:1.16
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            #!/bin/sh
+            set -e
+
+            apk add jq
+            apk add curl
+
+            # Sleep 1 second to wait for vault to start
+            sleep 2
+
+            # Initialize Vault
+            vault operator init -format=json > /vault/init-output.json
+
+            ROOT_TOKEN=$(jq -r ".root_token" /vault/init-output.json)
+
+            # Store the unseal key and root token in a Kubernetes secret (optional)
+            # kubectl create secret generic vault-init-secrets --from-literal=unseal-key=$UNSEAL_KEY --from-literal=root-token=$ROOT_TOKEN
+            SECRET_NAME="vault-cluster-unseal-init-secrets"
+            NAMESPACE="vault"
+            SECRET_DATA=$(jq -n --arg root_token "$ROOT_TOKEN" '{root_token: $root_token}')
+            DATA=$(echo -n $SECRET_DATA | base64)
+            cat <<EOF > secret.json
+            {
+              "apiVersion": "v1",
+              "kind": "Secret",
+              "metadata": {
+                "name": "$SECRET_NAME"
+              },
+              "data": {
+                "vault_data": "$DATA"
+              }
+            }
+            EOF
+            cat secret.json
+            curl -k -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @secret.json https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/secrets
+            echo "Vault initialization and setup complete."
+            
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault-cluster.vault.svc:8200"
+        volumeMounts:
+        - name: vault-init-output
+          mountPath: /vault
+        - name: kube-api-access
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
+      restartPolicy: Never
+      volumes:
+      - name: vault-init-output
+        emptyDir: {}
+      - name: kube-api-access
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              expirationSeconds: 3600

@@ -17,14 +17,16 @@ data:
       node_id = "node1"
 
       retry_join {
-        leader_api_addr = "http://vault-0.vault:8200"
+        leader_api_addr = "http://vault-cluster.vault.svc:8200"
       }
-      retry_join {
-        leader_api_addr = "http://vault-1.vault:8200"
-      }
-      retry_join {
-        leader_api_addr = "http://vault-2.vault:8200"
-      }
+    }
+
+    seal "transit" {
+      address = "http://vault-unseal-cluster:8200"
+      disable_renewal = "false"
+      key_name = "autounseal"
+      mount_path = "transit/"
+      tls_skip_verify = "true"
     }
 
     disable_mlock = true

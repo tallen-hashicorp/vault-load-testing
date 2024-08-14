@@ -111,9 +111,6 @@ spec:
             apk add jq
             apk add curl
 
-            # Set Vault addr
-            export VAULT_ADDR='http://vault-unseal-cluster:8200'
-
             # Sleep 1 second to wait for vault to start
             sleep 1
 
@@ -169,7 +166,7 @@ spec:
                 "name": "$SECRET_NAME"
               },
               "data": {
-                "my-key": "$DATA",
+                "vault_data": "$DATA",
                 "vault_token": "$VAULT_TOKEN"
               }
             }
@@ -180,7 +177,7 @@ spec:
             
         env:
         - name: VAULT_ADDR
-          value: "http://vault:8200"
+          value: 'http://vault-unseal-cluster:8200'
         volumeMounts:
         - name: vault-init-output
           mountPath: /vault
