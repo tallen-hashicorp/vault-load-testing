@@ -70,6 +70,11 @@ kubectl delete -f k8s
 
 **Note:** This environment is intended for temporary use and will be cleaned up after testing. If you plan to run it for an extended period, consider scaling down the StatefulSet instead of deleting everything.
 
+---
+# Locust
+
+Locust is an open-source load testing tool that allows you to define user behavior with Python code and simulate a large number of users to test the performance and scalability of your applications. It is designed to be easy to use and highly scalable, making it suitable for testing everything from small websites to large, complex systems. For this project, we will use Locust to perform load testing on Vault, ensuring that it can handle the expected traffic and usage patterns effectively.
+
 ## Locust Installation
 
 To install Locust, use the following command:
@@ -96,9 +101,9 @@ locust -f get_kv.py
 - Open [Locust UI](http://127.0.0.1:8089/) in your browser.
 - Set the host to `http://127.0.0.1:8200`.
 
-## Monitoring Vault
+## Monitoring Vault - Local Docker
 
-To monitor Vault, a basic Prometheus and Grafana setup is provided. Follow these steps:
+To monitor Vault, if you are not using k8s, a basic Prometheus and Grafana setup is provided. Follow these steps:
 
 1. Create a file named `prometheus-token` in the `./vault_monitor` directory containing a token to access Vault's metrics (e.g., the root token).
 2. Update the `targets` section in `./vault_monitor/prometheus.yml` to point to your Vault server.
