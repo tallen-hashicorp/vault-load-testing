@@ -7,16 +7,13 @@ We are going to be using vault enterprise for this example, if you wish to use O
 ### To Start
 ```bash
 kubectl apply -f k8s
+kubectl -n vault get secrets vault-cluster-unseal-init-secrets -o jsonpath="{.data.vault_data}" | base64 -d
 kubectl -n vault port-forward services/vault 8200:8200
 ```
 
-### Initialize Vaule
+### To cleanup
 ```bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-vault operator init
-
-# Do this 3 times with the unseal keys from above
-vault operator unseal
+kubectl delete -f k8s
 ```
 
 ## To Install
