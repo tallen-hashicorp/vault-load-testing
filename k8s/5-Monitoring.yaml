@@ -22,12 +22,15 @@ spec:
             # Sleep 1 second to wait for vault to start
             sleep 1
 
+            echo "creating policy for prometheus-metrics"
+
             vault policy write prometheus-metrics - << EOF
             path "/sys/metrics" {
               capabilities = ["read"]
             }
             EOF
 
+            echo "getting token"
             VAULT_TOKEN=$(vault token create -field=token -policy prometheus-metrics | base64)
 
             echo $VAULT_TOKEN | base64 -d
@@ -153,6 +156,16 @@ data:
         action: replace
         target_label: app
 
+    - job_name: vault
+      metrics_path: /v1/sys/metrics
+      params:
+        format: ['prometheus']
+      scheme: http
+      authorization:
+        credentials_file: /etc/prometheus/prometheus-token/prometheus_token
+      static_configs:
+      - targets: ['vault-cluster-0.vault-cluster-headless.vault.svc.cluster.local:8200', 'vault-cluster-1.vault-cluster-headless.vault.svc.cluster.local:8200', 'vault-cluster-2.vault-cluster-headless.vault.svc.cluster.local:8200']
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -172,6 +185,13 @@ spec:
         app: prometheus
     spec:
       serviceAccountName: prometheus
+      initContainers:
+      - name: wait-for-secret
+        image: busybox
+        command: ['sh', '-c', 'until [ -f /etc/prometheus/prometheus-token/prometheus_token ]; do echo "Waiting for secret..."; sleep 2; done;']
+        volumeMounts:
+        - name: prometheus-token
+          mountPath: /etc/prometheus/prometheus-token
       containers:
       - name: prometheus
         image: prom/prometheus
@@ -235,7 +255,7 @@ data:
     - name: Prometheus
       type: prometheus
       access: proxy
-      url: http://prometheus-service.monitoring.svc.cluster.local:80
+      url: http://prometheus-service.vault.svc.cluster.local:80
       isDefault: true
 ---
 apiVersion: apps/v1

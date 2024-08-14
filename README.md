@@ -19,7 +19,7 @@ This setup is designed to provide a robust environment for both development and 
 
 The next job `vault-cluster-init` defined in `4-ClusterInit.yaml` inits the main `vault-cluster` and then stores the root token in a k8s secret called `vault-cluster-unseal-init-secrets` with 2 keys, `vault_data` and `root_token`
 
-Next TODO
+last the `vault-monitoring-init-job` defined in `5-Monitoring.yaml` logs into vault using the `vault-cluster-unseal-init-secrets` secret's `root_token` then creates a new policy for prometheus-metrics allowing metrics reading. This then creates a new token with the policy and sets it to a k8s secret called `prometheus-token`. This will be used in a prometheus job as a credentials_file. 
 
 ![Kubernetes Architecture](docs/vault-k8s.png)
 
