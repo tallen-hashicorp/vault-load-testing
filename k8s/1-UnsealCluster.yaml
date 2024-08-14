@@ -19,6 +19,18 @@ data:
     ui = true
 ---
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-init-data-pvc
+  namespace: vault
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
 kind: Pod
 metadata:
   name: vault-unseal-cluster
@@ -40,7 +52,8 @@ spec:
       mountPath: /vault/data
   volumes:
   - name: vault-data
-    emptyDir: {}
+    persistentVolumeClaim:
+      claimName: vault-init-data-pvc
   - name: vault-config
     configMap:
       name: vault-unseal-config

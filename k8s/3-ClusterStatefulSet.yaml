@@ -6,7 +6,7 @@ metadata:
   labels:
     app: vault-cluster
 spec:
-  serviceName: "vault-cluster"
+  serviceName: "vault-cluster-headless" # This should match the headless service name
   replicas: 3
   selector:
     matchLabels:
@@ -48,7 +48,7 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: VAULT_CLUSTER_ADDR
-          value: http://$(POD_IP):8201
+          value: http://$(HOSTNAME).vault-cluster-headless.vault.svc.cluster.local:8201
         - name: VAULT_API_ADDR
           value: http://$(POD_IP):8200
         - name: VAULT_RAFT_NODE_ID
@@ -61,14 +61,20 @@ spec:
               name: vault-unseal-init-secrets
               key: vault_token
       volumes:
-      - name: vault-data
-        emptyDir: {}
       - name: vault-config
         configMap:
           name: vault-cluster-config
       - name: vault-secrets
         secret:
           secretName: vault-unseal-init-secrets
+  volumeClaimTemplates:
+  - metadata:
+      name: vault-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -76,11 +82,30 @@ metadata:
   name: vault-cluster-service
   namespace: vault
   labels:
-    app: vault-cluster
+    app: vault-cluster-service
 spec:
   ports:
   - name: vault
     port: 8200
     targetPort: 8200
+  selector:
+    app: vault-cluster
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-cluster-headless
+  namespace: vault
+  labels:
+    app: vault-cluster
+spec:
+  clusterIP: None # This makes the service headless
+  ports:
+  - name: vault
+    port: 8200
+    targetPort: 8200
+  - name: vault-cluster
+    port: 8201
+    targetPort: 8201
   selector:
     app: vault-cluster
