@@ -1,73 +1,96 @@
 # Vault Example Load Testing
-Using Locust.io to load test Vault
+
+This guide demonstrates how to use Locust.io to load test Vault in a Kubernetes environment. The example uses Vault Enterprise, but you can switch to the OSS version by changing the image in `3-ClusterStatefulSet.yaml`.
+
+![Kubernetes Architecture](docs/vault-k8s.png)
 
 ## Running Vault
-We are going to be using vault enterprise for this example, if you wish to use OSS you can chaneg the image in `3-ClusterStatefulSet.yaml`
 
-![k8s-arch](docs/vault-k8s.png)
+### 1. Start Vault
 
-### To Start
+To deploy Vault and set up port forwarding, run the following commands:
+
 ```bash
 kubectl apply -f k8s
 kubectl -n vault get secrets vault-cluster-unseal-init-secrets -o jsonpath="{.data.vault_data}" | base64 -d
-kubectl -n vault port-forward services/vault-cluster-service  8200:8200
+kubectl -n vault port-forward service/vault-cluster-service 8200:8200
 ```
 
-### To scale vault to 0
-We do this to simulate a vault outage
+### 2. Scale Vault to Zero Replicas
+
+Simulate a Vault outage by scaling down the StatefulSet to zero replicas:
+
 ```bash
 kubectl -n vault scale statefulset vault-cluster --replicas=0
 ```
 
-### To scale vault back to 3
+### 3. Scale Vault Back to Three Replicas
+
+Restore Vault to its normal state by scaling the StatefulSet back to three replicas:
+
 ```bash
 kubectl -n vault scale statefulset vault-cluster --replicas=3
 ```
 
-### To cleanup
-This will destroy everything in the cluster. This k8s was not intended to be persitant longer then a single test, this is on purpose to always have a clean env. If you want to run for a while then you can scale down the statefulset and scale this up again later, we'll use that in some later thundering heard testing. 
+### 4. Cleanup
+
+To delete the deployed resources and clean up the environment, run:
+
 ```bash
 kubectl delete -f k8s
 ```
 
-## To Install
+**Note:** This environment is intended for temporary use and will be cleaned up after testing. If you plan to run it for an extended period, consider scaling down the StatefulSet instead of deleting everything.
+
+## Locust Installation
+
+To install Locust, use the following command:
+
 ```bash
 brew install locust
 ```
 
----
+## Key-Value (KV) Operations
 
-# Get Key-Value (KV)
+### Create and Use KV Mount
+The locust test will perform the following:
+1. On startup, create a KV mount named `locust-load-test`.
+2. Write a KV entry with key `some-key` and data `{"hello": "world"}`.
+3. Read the KV entry for `some-key`.
 
-* On Start, create KV mount `locust-load-test`
-* Write KV `some-key` with data `{"hello": "world"}`
-* Read KV `some-key`
-
-## How to Run Get KV
+### Run Locust for KV Operations
 
 ```bash
 export VAULT_TOKEN=[TOKEN]
 locust -f get_kv.py
 ```
 
-* Then go to [locust](http://127.0.0.1:8089/)
-* Select host - `http://127.0.0.1:8200`
+- Open [Locust UI](http://127.0.0.1:8089/) in your browser.
+- Set the host to `http://127.0.0.1:8200`.
 
-# Monitoring
+## Monitoring Vault
 
-To help us monitor Vault, I have included a basic Prometheus and Grafana Docker setup. In order to run:
-* Create a file in `./vault_monitor` called `prometheus-token` that contains a token to access Vault's metrics. For this, I'm personally using the root token.
-* Update the `targets` in `./vault_monitor/prometheus.yml` to point at the Vault server.
-* Run:
+To monitor Vault, a basic Prometheus and Grafana setup is provided. Follow these steps:
+
+1. Create a file named `prometheus-token` in the `./vault_monitor` directory containing a token to access Vault's metrics (e.g., the root token).
+2. Update the `targets` section in `./vault_monitor/prometheus.yml` to point to your Vault server.
+3. Start Prometheus and Grafana using Docker Compose:
+
     ```bash
     cd vault_monitor
     docker compose up
     ```
-* Go to [http://127.0.0.1:3000](http://127.0.0.1:3000)
-* Login with `admin/admin`
-* Then add Prometheus
-* Set the Prometheus server URL to `http://prometheus:9090` 
-* Click `Create your first dashboard`
-* Select `Import`
-* Select ID `12904`
-* Select `Promxy` as your Prometheus
+
+4. Access Grafana at [http://127.0.0.1:3000](http://127.0.0.1:3000).
+5. Log in with the username `admin` and password `admin`.
+6. Add Prometheus as a data source:
+   - Set the Prometheus server URL to `http://prometheus:9090`.
+7. Click `Create your first dashboard`.
+8. Select `Import`.
+9. Enter the dashboard ID `12904`.
+10. Choose `Promxy` as your Prometheus instance.
+
+## Additional Notes
+
+- Ensure that your Kubernetes cluster and Docker environment are properly configured before starting the setup.
+- For further details on Vault configuration and Locust setup, refer to their respective official documentation.
