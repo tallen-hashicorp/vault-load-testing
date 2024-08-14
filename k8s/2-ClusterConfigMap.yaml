@@ -29,6 +29,10 @@ data:
       tls_skip_verify = "true"
     }
 
+    telemetry {
+      disable_hostname = true
+    }
+
     disable_mlock = true
 
     api_addr = "http://127.0.0.1.vault:8200"

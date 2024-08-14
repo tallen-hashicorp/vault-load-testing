@@ -1,0 +1,276 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-monitoring-init-job
+  namespace: vault
+spec:
+  template:
+    spec:
+      serviceAccountName: secret-writer
+      containers:
+      - name: vault-monitoring-init
+        image: hashicorp/vault:1.16
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            #!/bin/sh
+            set -e
+
+            apk add jq
+            apk add curl
+
+            # Sleep 1 second to wait for vault to start
+            sleep 1
+
+            vault policy write prometheus-metrics - << EOF
+            path "/sys/metrics" {
+              capabilities = ["read"]
+            }
+            EOF
+
+            VAULT_TOKEN=$(vault token create -field=token -policy prometheus-metrics | base64)
+
+            echo $VAULT_TOKEN | base64 -d
+
+
+            # Store the unseal key and root token in a Kubernetes secret (optional)
+            # kubectl create secret generic vault-init-secrets --from-literal=unseal-key=$UNSEAL_KEY --from-literal=root-token=$ROOT_TOKEN
+            SECRET_NAME="prometheus-token"
+            NAMESPACE="vault"
+            cat <<EOF > secret.json
+            {
+              "apiVersion": "v1",
+              "kind": "Secret",
+              "metadata": {
+                "name": "$SECRET_NAME"
+              },
+              "data": {
+                "prometheus_token": "$VAULT_TOKEN"
+              }
+            }
+            EOF
+
+            # Debugging: Print the token file content
+            echo "Service Account Token:"
+            cat /var/run/secrets/kubernetes.io/serviceaccount/token
+
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+            curl -k -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @secret.json https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/secrets
+            echo "Vault initialization and setup complete."
+            
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault-cluster-service:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-cluster-unseal-init-secrets
+              key: root_token
+        volumeMounts:
+        - name: vault-init-output
+          mountPath: /vault
+        - name: kube-api-access
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
+      restartPolicy: Never
+      volumes:
+      - name: vault-init-output
+        emptyDir: {}
+      - name: kube-api-access
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              expirationSeconds: 3600
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: vault
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  - apps
+  resources:
+  - deployments
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: vault
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: vault
+  labels:
+    name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+
+    scrape_configs:
+    - job_name: 'kubernetes'
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_label_app]
+        action: keep
+        regex: monitoring;vault
+
+    - job_name: 'kubernetes-pods'
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: replace
+        target_label: app
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-deployment
+  namespace: vault
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--storage.tsdb.path=/prometheus/"
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: prometheus-config-volume
+          mountPath: /etc/prometheus/
+        - name: prometheus-storage-volume
+          mountPath: /prometheus/
+        - name: prometheus-token
+          mountPath: /etc/prometheus/prometheus-token
+      volumes:
+      - name: prometheus-config-volume
+        configMap:
+          name: prometheus-config
+      - name: prometheus-storage-volume
+        emptyDir: {}
+      - name: prometheus-token
+        secret:
+          secretName: prometheus-token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: vault
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: vault
+spec:
+  selector:
+    app: grafana
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: vault
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus-service.monitoring.svc.cluster.local:80
+      isDefault: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-deployment
+  namespace: vault
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: admin
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+      volumes:
+      - name: grafana-storage
+        emptyDir: {}
+      - name: grafana-datasources
+        configMap:
+          name: grafana-datasources

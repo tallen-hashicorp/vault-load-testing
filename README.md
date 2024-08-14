@@ -15,6 +15,12 @@ This guide provides a comprehensive setup for deploying a highly available Vault
 
 This setup is designed to provide a robust environment for both development and production scenarios with one click, offering a scalable and monitored Vault deployment with built-in resilience.
 
+3 jobs run to setup the vaults and monitoring. The first, `vault-init-job` defined in `1-UnsealCluster.yaml` inits the vault-unseal-cluster and unseals it. It then enables transit, writes a autounseal key, creates a policy to allow encrypt and decrypt with this key. Next it creates a orphan token with this policy. We then write to a k8s secret called `vault-unseal-init-secrets` with the unseal_key and root_token of this cluster. 
+
+The next job `vault-cluster-init` defined in `4-ClusterInit.yaml` inits the main `vault-cluster` and then stores the root token in a k8s secret called `vault-cluster-unseal-init-secrets` with 2 keys, `vault_data` and `root_token`
+
+Next TODO
+
 ![Kubernetes Architecture](docs/vault-k8s.png)
 
 ### Start Vault
@@ -25,6 +31,17 @@ To deploy Vault and set up port forwarding, run the following commands:
 kubectl apply -f k8s
 kubectl -n vault get secrets vault-cluster-unseal-init-secrets -o jsonpath="{.data.vault_data}" | base64 -d
 kubectl -n vault port-forward service/vault-cluster-service 8200:8200
+```
+
+### Access Monitoring
+After running this you can access Grafana on [http://127.0.0.1:3000](http://127.0.0.1:3000)
+```bash
+kubectl -n vault port-forward services/grafana-service 3000:80
+```
+
+Or if you want to access prometheus you can run the following and access on [http://127.0.0.1:9090](http://127.0.0.1:9090)
+```bash
+kubectl -n vault port-forward services/prometheus-service 9090:80
 ```
 
 ### Scale Vault to Zero Replicas
