@@ -6,7 +6,7 @@ metadata:
   labels:
     app: vault-cluster
 spec:
-  serviceName: "vault-cluster-headless"
+  serviceName: "vault-cluster-headless" # This should match the headless service name
   replicas: 3
   selector:
     matchLabels:
@@ -48,7 +48,7 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: VAULT_CLUSTER_ADDR
-          value: http://$(POD_IP):8201
+          value: http://$(HOSTNAME).vault-cluster-headless.vault.svc.cluster.local:8201
         - name: VAULT_API_ADDR
           value: http://$(POD_IP):8200
         - name: VAULT_RAFT_NODE_ID
@@ -75,7 +75,6 @@ spec:
       resources:
         requests:
           storage: 1Gi
-
 ---
 apiVersion: v1
 kind: Service
