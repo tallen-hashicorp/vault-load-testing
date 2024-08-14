@@ -25,6 +25,8 @@ spec:
             # Initialize Vault
             vault operator init -format=json > /vault/init-output.json
 
+            cat /vault/init-output.json
+
             ROOT_TOKEN=$(jq -r ".root_token" /vault/init-output.json)
 
             # Store the unseal key and root token in a Kubernetes secret (optional)
@@ -45,13 +47,18 @@ spec:
               }
             }
             EOF
-            cat secret.json
+
+            # Debugging: Print the token file content
+            echo "Service Account Token:"
+            cat /var/run/secrets/kubernetes.io/serviceaccount/token
+
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
             curl -k -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @secret.json https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/secrets
             echo "Vault initialization and setup complete."
             
         env:
         - name: VAULT_ADDR
-          value: "http://vault-cluster.vault.svc:8200"
+          value: "http://vault-cluster-service:8200"
         volumeMounts:
         - name: vault-init-output
           mountPath: /vault

@@ -48,10 +48,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: vault-unseal-cluster
+  name: vault-unseal-cluster-service
   namespace: vault
   labels:
-    app: vault-unseal-cluster
+    app: vault-unseal-cluster-service
 spec:
   ports:
   - name: vault
@@ -177,7 +177,7 @@ spec:
             
         env:
         - name: VAULT_ADDR
-          value: 'http://vault-unseal-cluster:8200'
+          value: 'http://vault-unseal-cluster-service:8200'
         volumeMounts:
         - name: vault-init-output
           mountPath: /vault

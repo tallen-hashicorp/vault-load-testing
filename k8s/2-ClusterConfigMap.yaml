@@ -17,12 +17,12 @@ data:
       node_id = "node1"
 
       retry_join {
-        leader_api_addr = "http://vault-cluster.vault.svc:8200"
+        leader_api_addr = "http://vault-cluster-service:8200"
       }
     }
 
     seal "transit" {
-      address = "http://vault-unseal-cluster:8200"
+      address = "http://vault-unseal-cluster-service:8200"
       disable_renewal = "false"
       key_name = "autounseal"
       mount_path = "transit/"

@@ -48,9 +48,9 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: VAULT_CLUSTER_ADDR
-          value: http://$(HOSTNAME).vault:8201
+          value: http://$(POD_IP):8201
         - name: VAULT_API_ADDR
-          value: http://$(POD_IP).vault:8200
+          value: http://$(POD_IP):8200
         - name: VAULT_RAFT_NODE_ID
           valueFrom:
             fieldRef:
@@ -73,7 +73,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: vault-cluster
+  name: vault-cluster-service
   namespace: vault
   labels:
     app: vault-cluster
