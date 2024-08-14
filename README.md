@@ -2,7 +2,9 @@
 Using Locust.io to load test Vault
 
 ## Running Vault
-We are going to be using vault enterprise for this example, if you wish to use OSS you can chaneg the image in the 
+We are going to be using vault enterprise for this example, if you wish to use OSS you can chaneg the image in `3-ClusterStatefulSet.yaml`
+
+![k8s-arch](docs/vault-k8s.png)
 
 ### To Start
 ```bash
