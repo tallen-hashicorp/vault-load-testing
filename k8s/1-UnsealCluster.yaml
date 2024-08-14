@@ -1,0 +1,199 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-unseal-config
+  namespace: vault
+data:
+  vault.hcl: |
+    storage "file" {
+      path = "/vault/data"
+    }
+
+    listener "tcp" {
+      address     = "0.0.0.0:8200"
+      tls_disable = 1
+    }
+
+    api_addr = "http://127.0.0.1:8200"
+    cluster_addr = "https://127.0.0.1:8201"
+    ui = true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vault-unseal-cluster
+  namespace: vault
+  labels:
+    app: vault-unseal-cluster
+spec:
+  containers:
+  - name: vault-unseal-cluster
+    image: hashicorp/vault:1.16
+    # image: hashicorp/vault-enterprise:1.16.7-ent
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+    ports:
+    - containerPort: 8200
+    volumeMounts:
+    - name: vault-config
+      mountPath: /vault/config
+    - name: vault-data
+      mountPath: /vault/data
+  volumes:
+  - name: vault-data
+    emptyDir: {}
+  - name: vault-config
+    configMap:
+      name: vault-unseal-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-unseal-cluster
+  namespace: vault
+  labels:
+    app: vault-unseal-cluster
+spec:
+  ports:
+  - name: vault
+    port: 8200
+    targetPort: 8200
+  selector:
+    app: vault-unseal-cluster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secret-writer
+  namespace: vault
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: vault
+  name: secret-writer-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secret-writer-rolebinding
+  namespace: vault
+subjects:
+- kind: ServiceAccount
+  name: secret-writer
+  namespace: vault
+roleRef:
+  kind: Role
+  name: secret-writer-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init-job
+  namespace: vault
+spec:
+  template:
+    spec:
+      serviceAccountName: secret-writer
+      containers:
+      - name: vault-init
+        image: hashicorp/vault:1.16
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            #!/bin/sh
+            set -e
+
+            apk add jq
+            apk add curl
+
+            # Set Vault addr
+            export VAULT_ADDR='http://vault-unseal-cluster:8200'
+
+            # Sleep 1 second to wait for vault to start
+            sleep 1
+
+            # Initialize Vault
+            vault operator init -key-shares=1 -key-threshold=1 -format=json > /vault/init-output.json
+
+            # Extract the unseal key and root token
+            UNSEAL_KEY=$(jq -r ".unseal_keys_b64[0]" /vault/init-output.json)
+
+            ROOT_TOKEN=$(jq -r ".root_token" /vault/init-output.json)
+
+            # Unseal Vault
+            vault operator unseal $UNSEAL_KEY
+
+            # Login with the root token
+            export VAULT_TOKEN=$ROOT_TOKEN
+            vault login $ROOT_TOKEN
+
+            # Enable the transit secrets engine
+            vault secrets enable transit
+
+            # Create a key for auto-unseal
+            vault write -f transit/keys/autounseal
+
+            # Create a policy to use the engine
+            vault policy write autounseal -<<EOF
+            path "transit/encrypt/autounseal" {
+              capabilities = [ "update" ]
+            }
+
+            path "transit/decrypt/autounseal" {
+              capabilities = [ "update" ]
+            }
+            EOF
+
+            # Create an orphan periodic client token with the autounseal policy attached
+            # and response wrap it with TTL of 120 seconds.
+            VAULT_TOKEN=$(vault token create -orphan -policy="autounseal" -ttl=120 -period=24h -field=token | base64)
+            
+            echo $VAULT_TOKEN | base64 -d
+
+            # Store the unseal key and root token in a Kubernetes secret (optional)
+            # kubectl create secret generic vault-init-secrets --from-literal=unseal-key=$UNSEAL_KEY --from-literal=root-token=$ROOT_TOKEN
+            SECRET_NAME="vault-unseal-init-secrets"
+            NAMESPACE="vault"
+            SECRET_DATA=$(jq -n --arg unseal_key "$UNSEAL_KEY" --arg root_token "$ROOT_TOKEN" '{unseal_key: $unseal_key, root_token: $root_token}')
+            DATA=$(echo -n $SECRET_DATA | base64)
+            cat <<EOF > secret.json
+            {
+              "apiVersion": "v1",
+              "kind": "Secret",
+              "metadata": {
+                "name": "$SECRET_NAME"
+              },
+              "data": {
+                "my-key": "$DATA",
+                "vault_token": "$VAULT_TOKEN"
+              }
+            }
+            EOF
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+            curl -k -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @secret.json https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/secrets
+            echo "Vault initialization and setup complete."
+            
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        volumeMounts:
+        - name: vault-init-output
+          mountPath: /vault
+        - name: kube-api-access
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
+      restartPolicy: Never
+      volumes:
+      - name: vault-init-output
+        emptyDir: {}
+      - name: kube-api-access
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              expirationSeconds: 3600

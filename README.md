@@ -1,6 +1,24 @@
 # Vault Example Load Testing
 Using Locust.io to load test Vault
 
+## Running Vault
+We are going to be using vault enterprise for this example, if you wish to use OSS you can chaneg the image in the 
+
+### To Start
+```bash
+kubectl apply -f k8s
+kubectl -n vault port-forward services/vault 8200:8200
+```
+
+### Initialize Vaule
+```bash
+export VAULT_ADDR='http://127.0.0.1:8200'
+vault operator init
+
+# Do this 3 times with the unseal keys from above
+vault operator unseal
+```
+
 ## To Install
 ```bash
 brew install locust

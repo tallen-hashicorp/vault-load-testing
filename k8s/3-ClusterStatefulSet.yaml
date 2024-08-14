@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault-cluster
+  namespace: vault
+  labels:
+    app: vault-cluster
+spec:
+  serviceName: "vault-cluster"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault-cluster
+  template:
+    metadata:
+      labels:
+        app: vault-cluster
+    spec:
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.16
+        # image: hashicorp/vault-enterprise:1.16.7-ent
+        command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+        ports:
+        - containerPort: 8200
+          name: vault
+        - containerPort: 8201
+          name: vault-cluster
+        volumeMounts:
+        - name: vault-config
+          mountPath: /vault/config
+        - name: vault-data
+          mountPath: /vault/data
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: VAULT_CLUSTER_ADDR
+          value: http://$(HOSTNAME).vault:8201
+        - name: VAULT_API_ADDR
+          value: http://$(POD_IP).vault:8200
+        - name: VAULT_RAFT_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumes:
+      - name: vault-data
+        emptyDir: {}
+      - name: vault-config
+        configMap:
+          name: vault-cluster-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-cluster
+  namespace: vault
+  labels:
+    app: vault-cluster
+spec:
+  ports:
+  - name: vault
+    port: 8200
+    targetPort: 8200
+  selector:
+    app: vault-cluster
