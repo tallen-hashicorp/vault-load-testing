@@ -10,10 +10,22 @@ We are going to be using vault enterprise for this example, if you wish to use O
 ```bash
 kubectl apply -f k8s
 kubectl -n vault get secrets vault-cluster-unseal-init-secrets -o jsonpath="{.data.vault_data}" | base64 -d
-kubectl -n vault port-forward services/vault 8200:8200
+kubectl -n vault port-forward services/vault-cluster-service  8200:8200
+```
+
+### To scale vault to 0
+We do this to simulate a vault outage
+```bash
+kubectl -n vault scale statefulset vault-cluster --replicas=0
+```
+
+### To scale vault back to 3
+```bash
+kubectl -n vault scale statefulset vault-cluster --replicas=3
 ```
 
 ### To cleanup
+This will destroy everything in the cluster. This k8s was not intended to be persitant longer then a single test, this is on purpose to always have a clean env. If you want to run for a while then you can scale down the statefulset and scale this up again later, we'll use that in some later thundering heard testing. 
 ```bash
 kubectl delete -f k8s
 ```
@@ -22,6 +34,8 @@ kubectl delete -f k8s
 ```bash
 brew install locust
 ```
+
+---
 
 # Get Key-Value (KV)
 
