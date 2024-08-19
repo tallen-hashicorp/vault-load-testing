@@ -101,6 +101,22 @@ locust -f get_kv.py
 - Open [Locust UI](http://127.0.0.1:8089/) in your browser.
 - Set the host to `http://127.0.0.1:8200`.
 
+## Get Token
+This will perform the following steps
+* Create a standard token
+* Create a orphan token
+* Create a batch token
+
+### Run Locust for KV Operations
+
+```bash
+export VAULT_TOKEN=[TOKEN]
+locust -f get_token.py
+```
+
+- Open [Locust UI](http://127.0.0.1:8089/) in your browser.
+- Set the host to `http://127.0.0.1:8200`.
+
 ## Monitoring Vault - Local Docker
 
 To monitor Vault, if you are not using k8s, a basic Prometheus and Grafana setup is provided. Follow these steps:
