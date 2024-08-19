@@ -5,7 +5,7 @@ This guide demonstrates how to use Locust.io to load test Vault in a Kubernetes 
 
 ## Running Vault in Kubernetes
 
-This guide provides a comprehensive setup for deploying a highly available Vault cluster in Kubernetes using StatefulSets. The setup includes:
+This guide provides a comprehensive setup for deploying a highly available Vault cluster in Kubernetes using StatefulSets. This was used over helm more out of interest, using [Helm](https://developer.hashicorp.com/vault/docs/platform/k8s/helm) is the recomended approach. The setup includes:
 
 - **Three-Node Vault Cluster**: Ensures high availability and fault tolerance for your Vault deployment.
 - **StatefulSets**: Utilizes Kubernetes StatefulSets to manage the deployment and scaling of Vault instances with persistent storage.
@@ -23,13 +23,45 @@ last the `vault-monitoring-init-job` defined in `5-Monitoring.yaml` logs into va
 
 ![Kubernetes Architecture](docs/vault-k8s.png)
 
+Here's a cleaned-up and slightly revised version of the instructions:
+
+---
+
+### Enterprise License Key
+
+If you're using the Enterprise version of Vault (which is the default), you'll need to create a Kubernetes secret containing your license file before deploying Vault. Follow these steps, replacing `vault.hclic` with your actual license file. You can also copy the `vault.hclic` file to this directory (it's included in `.gitignore`):
+
+1. Apply the namespace configuration:
+```bash
+kubectl apply -f k8s/0-Namespace.yaml
+```
+
+2. Create a Kubernetes secret with your Vault license:
+```bash
+kubectl -n vault create secret generic vault-licence --from-file=vault.hclic
+```
+
 ### Start Vault
 
-To deploy Vault and set up port forwarding, run the following commands:
+To deploy Vault and set up port forwarding, execute the following commands:
 
+1. Deploy Vault:
 ```bash
 kubectl apply -f k8s
+```
+
+2. Monitor the Vault pods until they are ready:
+```bash
+kubectl -n vault get pods --watch
+```
+
+3. Retrieve the Vault unseal key (if needed):
+```bash
 kubectl -n vault get secrets vault-cluster-unseal-init-secrets -o jsonpath="{.data.vault_data}" | base64 -d
+```
+
+4. Set up port forwarding to access Vault:
+```bash
 kubectl -n vault port-forward service/vault-cluster-service 8200:8200
 ```
 

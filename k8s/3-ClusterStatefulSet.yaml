@@ -25,8 +25,8 @@ spec:
           mountPath: /vault/secrets
       containers:
       - name: vault
-        image: hashicorp/vault:1.16
-        # image: hashicorp/vault-enterprise:1.16.7-ent
+        # image: hashicorp/vault:1.16
+        image: hashicorp/vault-enterprise:1.16.7-ent
         command: ["vault", "server", "-config=/vault/config/vault.hcl"]
         ports:
         - containerPort: 8200
@@ -39,6 +39,11 @@ spec:
         - name: vault-data
           mountPath: /vault/data
         env:
+        - name: VAULT_LICENSE #Comment this block if you are not using ent
+          valueFrom:
+            secretKeyRef:
+              name: vault-licence
+              key: vault.hclic
         - name: HOSTNAME
           valueFrom:
             fieldRef:
