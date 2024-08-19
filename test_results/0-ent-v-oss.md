@@ -11,6 +11,13 @@ vault-benchmark run -config=vault-benchmark/basic.hcl
 
 ## Results
 
+### Vault Enterprise 1.17.3
+
+| Operation              | Count | Rate (ops/sec) | Throughput (ops/sec) | Mean Latency | 95th Percentile Latency | 99th Percentile Latency | Success Ratio |
+|------------------------|-------|----------------|----------------------|--------------|------------------------|------------------------|---------------|
+| AppRole Logins         | 6355  | 211.76         | 211.62               | 23.97 ms     | 37.67 ms               | 51.48 ms               | 100.00%       |
+| Static Secret Writes   | 6458  | 215.38         | 215.14               | 22.86 ms     | 38.37 ms               | 54.22 ms               | 100.00%       |
+
 ### Vault Enterprise 1.16.7
 
 | Operation              | Count | Rate (ops/sec) | Throughput (ops/sec) | Mean Latency | 95th Percentile Latency | 99th Percentile Latency | Success Ratio |
@@ -37,10 +44,11 @@ vault-benchmark run -config=vault-benchmark/basic.hcl
 From the results, we can observe the following trends:
 
 1. **Performance Comparison**:
-   - **Enterprise 1.16.7** shows the best performance among the versions tested, with the highest operation rates and the lowest latencies.
+   - **Enterprise 1.17.3** shows the best performance among the versions tested, with the highest operation rates and the lowest latencies.
+   - **Enterprise 1.16.7** also performs well but is slightly slower than 1.17.3.
    - **OSS 1.16** performs slightly worse than Enterprise 1.16.7, with lower throughput and higher latencies, though it still maintains strong performance.
-   - **Enterprise 1.13.13** has significantly lower performance compared to both 1.16 versions, with approximately half the operation rate and higher latencies.
+   - **Enterprise 1.13.13** has significantly lower performance compared to both 1.16 and 1.17 versions, with approximately half the operation rate and higher latencies.
 
 2. **Version Impact**:
-   - Upgrading from **Enterprise 1.13.13** to **1.16.7** provides a substantial performance boost, highlighting the optimizations and improvements made in newer versions.
+   - Upgrading from **Enterprise 1.13.13** to **1.16.7** provides a substantial performance boost, which is further improved in **1.17.3**. This highlights the optimizations and improvements made in newer versions.
    - The **Enterprise** version consistently outperforms the **OSS** version of the same release, indicating additional performance enhancements available in the enterprise edition.

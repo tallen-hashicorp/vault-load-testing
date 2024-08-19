@@ -27,7 +27,8 @@ spec:
       - name: vault
         # image: hashicorp/vault:1.16
         # image: hashicorp/vault-enterprise:1.13.13-ent
-        image: hashicorp/vault-enterprise:1.16.7-ent
+        # image: hashicorp/vault-enterprise:1.16.7-ent
+        image: hashicorp/vault-enterprise:1.17.3-ent
         command: ["vault", "server", "-config=/vault/config/vault.hcl"]
         ports:
         - containerPort: 8200
