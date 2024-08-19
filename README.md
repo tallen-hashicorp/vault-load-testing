@@ -157,10 +157,10 @@ To monitor Vault, if you are not using k8s, a basic Prometheus and Grafana setup
 2. Update the `targets` section in `./vault_monitor/prometheus.yml` to point to your Vault server.
 3. Start Prometheus and Grafana using Docker Compose:
 
-    ```bash
-    cd vault_monitor
-    docker compose up
-    ```
+```bash
+cd vault_monitor
+docker compose up
+```
 
 4. Access Grafana at [http://127.0.0.1:3000](http://127.0.0.1:3000).
 5. Log in with the username `admin` and password `admin`.
