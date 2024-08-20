@@ -139,7 +139,7 @@ This will perform the following steps
 * Create a orphan token
 * Create a batch token
 
-### Run Locust for KV Operations
+### Run Locust for Token Operations
 
 ```bash
 export VAULT_TOKEN=[TOKEN]
