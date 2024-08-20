@@ -5,7 +5,7 @@ This guide demonstrates how to use Locust.io to load test Vault in a Kubernetes 
 
 ## Running Vault in Kubernetes
 
-This guide provides a comprehensive setup for deploying a highly available Vault cluster in Kubernetes using StatefulSets. This was used over helm more out of interest, using [Helm](https://developer.hashicorp.com/vault/docs/platform/k8s/helm) is the recomended approach. The setup includes:
+This guide details the process of deploying a HA Vault cluster in Kubernetes using StatefulSets, alongside a secondary single-node cluster for auto-unseal. While this setup was chosen out of personal interest, it's important to note that using [Helm](https://developer.hashicorp.com/vault/docs/platform/k8s/helm) is the recommended approach for most k8s deployments.
 
 - **Three-Node Vault Cluster**: Ensures high availability and fault tolerance for your Vault deployment.
 - **StatefulSets**: Utilizes Kubernetes StatefulSets to manage the deployment and scaling of Vault instances with persistent storage.
